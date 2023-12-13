@@ -1,0 +1,7 @@
+{
+  "enphase_username": "email@example.com",
+  "enphase_password": "XXXXXXXX",
+  "gateway_host": "https://envoy.local",
+  "gateway_serial_number": "12345",
+  "yoctopuce_url": "usb"
+}
