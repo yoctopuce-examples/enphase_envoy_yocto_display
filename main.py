@@ -20,29 +20,6 @@ from yoctopuce.yocto_api import YAPI, YRefParam
 from yoctopuce.yocto_display import YDisplayLayer, YDisplay
 
 
-def get_human_readable_power(watts, in_hours=False):
-    """
-    Convert power value to a human-readable format.
-
-    Args:
-        watts (float):
-            Power value in watts.
-        in_hours (bool, optional):
-            If True, append 'h' to indicate hours. Default is False.
-
-    Returns:
-        str:
-            Human-readable power value with unit (W or kW).
-    """
-    # Is the significant number of watts (i.e. positive or negative number) less than 1,000?
-    if abs(round(watts)) < 1000:
-        # Report the number in watts (rounded to the nearest number).
-        return f'{watts:.0f} W{"h" if in_hours else ""}'
-
-    # Divide the number by a thousand and report it in kW (to 2 decimal places).
-    return f'{watts / 1000:.2f} kW{"h" if in_hours else ""}'
-
-
 def get_secure_gateway_session(credentials):
     """
     Establishes a secure session with the Enphase® IQ Gateway API.
@@ -97,7 +74,7 @@ def get_secure_gateway_session(credentials):
                 credentials['gateway_token'] = authentication.get_token_for_uncommissioned_gateway()
 
             # Update the file to include the modified token.
-            with open('config.json.example', mode='w', encoding='utf-8') as json_file:
+            with open('config.json', mode='w', encoding='utf-8') as json_file:
                 json.dump(credentials, json_file, indent=4)
         else:
             # Let the user know why the program is exiting.
@@ -108,7 +85,7 @@ def get_secure_gateway_session(credentials):
 
     # Download and store the certificate from the gateway so all future requests are secure.
     if not os.path.exists('gateway.cer'):
-        Gateway.trust_gateway(host)
+        Gateway.trust_gateway(host, "gateway.cer")
 
     # Instantiate the Gateway API wrapper (with the default library hostname if None provided).
     gateway = Gateway(host)
@@ -122,7 +99,16 @@ def get_secure_gateway_session(credentials):
     return gateway
 
 
-def get_solar_status(gateway):
+def get_solar_stats(gateway):
+    """
+      Get production and consumption statistics from the Solar Envoy Gateway
+      Args:
+           gateway: An initialised Gateway API wrapper object for interacting with the gateway.
+
+      Returns:
+          the current production and consumption in watt
+
+      """
     production_statistics = gateway.api_call('/production.json')
     production = 0
     for device in production_statistics['production']:
@@ -148,7 +134,12 @@ def format_watts(watts):
 
 def main():
     # Load credentials.
-    with open('config.json.example', mode='r', encoding='utf-8') as json_file:
+    print("Use Yoctopuce Library version %s" % YAPI.GetAPIVersion())
+    if not os.path.exists('config.json'):
+        print('No config.json file found.')
+        sys.exit(1)
+
+    with open('config.json', mode='r', encoding='utf-8') as json_file:
         config = json.load(json_file)
 
     # configure Yoctopuce library
@@ -161,15 +152,15 @@ def main():
     # ensure we have a Yoctodisplay connected
     disp = YDisplay.FirstDisplay()
     if disp is None:
-        print('No module connected')
+        print('No Yocto-MaxiDisplay connected on ' + config['yoctopuce_url'])
         sys.exit(1)
 
     # display clean up
     disp.resetAll()
-    # retreive the display size
+    # retrieve the display size
     w = disp.get_displayWidth()
     h = disp.get_displayHeight()
-    # retreive the first layer
+    # retrieve the first layer
     l0 = disp.get_displayLayer(0)
     l0.clear()
 
@@ -177,7 +168,7 @@ def main():
     gateway = get_secure_gateway_session(config)
 
     while disp.isOnline():
-        production, consumption = get_solar_status(gateway)
+        production, consumption = get_solar_stats(gateway)
         avail = production - consumption
         # display a text in the middle of the screen
         l0.clear()
@@ -185,8 +176,8 @@ def main():
         l0.drawText(w / 2, h / 3, YDisplayLayer.ALIGN.CENTER, format_watts(avail))
         l0.selectFont('Medium.yfm')
         l0.drawText(w / 2, h * 2 / 3, YDisplayLayer.ALIGN.CENTER, "(" + format_watts(production) + ")")
-
-        YAPI.Sleep(1000, errmsg)
+        # sleep 5 seconds
+        YAPI.Sleep(5000, errmsg)
 
 
 # Launch the main method if invoked directly.
