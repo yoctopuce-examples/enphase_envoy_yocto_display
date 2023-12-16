@@ -84,8 +84,8 @@ def get_secure_gateway_session(credentials):
     host = credentials.get('gateway_host')
 
     # Download and store the certificate from the gateway so all future requests are secure.
-    if not os.path.exists('gateway.cer'):
-        Gateway.trust_gateway(host, "gateway.cer")
+    if not os.path.exists('./gateway.cer'):
+        Gateway.trust_gateway(host, "./gateway.cer")
 
     # Instantiate the Gateway API wrapper (with the default library hostname if None provided).
     gateway = Gateway(host)
@@ -129,7 +129,7 @@ def format_watts(watts):
     watts = round(watts)
     if abs(watts) < 1000:
         return "%d W" % watts
-    return "%.1f W" % (watts / 1000.0)
+    return "%.1f kW" % (watts / 1000.0)
 
 
 def main():
@@ -170,12 +170,14 @@ def main():
     while disp.isOnline():
         production, consumption = get_solar_stats(gateway)
         avail = production - consumption
+        print("%d (%d-%d)" % (avail, production, consumption))
         # display a text in the middle of the screen
         l0.clear()
         l0.selectFont('Large.yfm')
         l0.drawText(w / 2, h / 3, YDisplayLayer.ALIGN.CENTER, format_watts(avail))
         l0.selectFont('Medium.yfm')
         l0.drawText(w / 2, h * 2 / 3, YDisplayLayer.ALIGN.CENTER, "(" + format_watts(production) + ")")
+        disp.swapLayerContent(0,1)
         # sleep 5 seconds
         YAPI.Sleep(5000, errmsg)
 
